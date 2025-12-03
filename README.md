@@ -81,27 +81,39 @@ Upload or mount internal documents → index them into a vector database → que
 ## Repository Structure
 
 ```text
-.
+ai-poc/
 ├── README.md
+│
 ├── docs/
 │   ├── architecture-overview.md
 │   ├── rag-sequence-diagram.md
-│   ├── screenshots/
-│   │   ├── architecture.png
-│   │   └── RAG Connection Tool.png
-├── deploy/
-│   ├── docker-compose.yml
-│   ├── caddy/
-│   │   └── Caddyfile
-│   ├── openwebui/
-│   │   └── openwebui.yml
-│   └── chromadb/
-│       └── chromadb.yml
+│   └── screenshots/
+│       ├── architecture.png
+│       └── rag-connection-tool.png
+│
 ├── services/
 │   ├── rag-api/
-│   └── kb-indexer/
+│   │   ├── main.py               
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── indexer/
+│   │   ├── indexer.py
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│
+├── deploy/
+│   ├── caddy/
+│   │   └── Caddyfile
+│   ├── chromadb/
+│   │   └── chromadb.yml
+│   └── openwebui/
+│       └── openwebui.yml
+│
 ├── kb-samples/
+│
 └── scripts/
+
 ```
 
 See [docs/arhitecture-overview.md](https://github.com/Dv-beep/ai-platform-poc/blob/main/docs/architecture-overview.md) for diagrams and more detail.
