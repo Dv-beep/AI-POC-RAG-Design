@@ -39,7 +39,7 @@ sequenceDiagram
         IDX->>EMB: Generate embeddings for chunks
         EMB-->>IDX: Return vector embeddings
 
-        IDX->>C: Upsert documents + embeddings<br/>into collection (e.g. <code>tli_kb</code>)
+        IDX->>C: Upsert documents + embeddings<br/>into collection (e.g. enterprise_collection)
         C-->>IDX: Confirm write (ids / stats)
     end
 
@@ -66,23 +66,23 @@ sequenceDiagram
     participant U as User
     participant W as OpenWebUI
     participant L as LLM<br/>(Ollama)
-    participant T as TLI KB Tool<br/>(Tool Server)
+    participant T as RAG Tool<br/>(Tool Server)
     participant R as RAG API<br/>(FastAPI)
     participant C as ChromaDB
     participant FS as File Share<br/>(KB / SOPs)
 
     U->>W: Enters question about internal KB/SOP
-    W->>L: Send chat request with tool schema<br/>(includes TLI KB Database tool)
+    W->>L: Send chat request with tool schema<br/>(includes RAG tool)
 
     Note over L,W: LLM decides it needs KB context<br/>and calls the tool
 
-    L-->>W: Tool call request<br/>(e.g. { "tool": "tli_kb_query", "question": "..." })
+    L-->>W: Tool call request<br/>(e.g. { "tool": "RAG tool", "question": "..." })
     W->>T: Forward tool call to tool server
     T->>R: HTTP POST /query<br/>{ question, filters }
 
     Note over R: RAG pipeline execution
 
-    R->>C: Query collection (e.g. tli_kb)<br/>for top-k relevant chunks
+    R->>C: Query collection for top-k relevant chunks
     C-->>R: Return chunks + metadata<br/>(content, titles, file paths)
 
     R->>R: Build RAG prompt template<br/>(instructions + context + question)
