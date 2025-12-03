@@ -1,173 +1,108 @@
-# **AI-POC: Retrieval-Augmented Generation (RAG) System**
+# AI Knowledge Platform – RAG Proof of Concept
 
-This project implements an on-premise Retrieval-Augmented Generation (RAG) pipeline for securely querying an internal knowledge bases (KBs/SOPs). All data, embeddings, and LLM inference remain fully inside the network—no cloud services or external APIs.
+This repository contains a self-hosted AI Knowledge Platform built around **Retrieval-Augmented Generation (RAG)**.
 
-The system is built using OpenWebUI, a custom RAG API, ChromaDB, Ollama, and a document indexer, all running in an isolated containerized environment.
-
----
-
-## **Architecture Overview**
-
-The AI-POC pipeline retrieves relevant internal content and augments the LLM’s response using ChromaDB-stored KB/SOP embeddings.
-
-```
-                    ┌─────────────────────────┐
-                    │       Users             │
-                    └────────────┬────────────┘
-                                 │  HTTPS
-                                 ▼
-                        ┌────────────────┐
-                        │  OpenWebUI     │
-                        │ (Chat Client)  │
-                        └───────┬────────┘
-                                │ RAG Tool Call
-                                ▼
-                    ┌──────────────────────────┐
-                    │        RAG API           │
-                    │  - Query Orchestration   │
-                    │  - Prompt Builder        │
-                    └─────────┬─────┬──────────┘
-                              │     │
-        ┌─────────────────────┘     └──────────────────────┐
-        │                                                   │
-        ▼                                                   ▼
-┌──────────────────┐                              ┌──────────────────┐
-│    ChromaDB      │                              │     Ollama       │
-│ (Vector Store)   │                              │  (Local LLM)     │
-└──────────────────┘                              └──────────────────┘
-
-                       ▼
-                 Final Answer
-```
+The goal of this project is to provide a secure, internal-only AI assistant that can answer questions using an organization’s own knowledge base (SOPs, policies, internal docs) without sending data to external APIs.
 
 ---
 
-## **Data Ingestion & Indexing Workflow**
+## 🔍 High-Level Overview
 
-Internal KB & SOP directories on the Windows file server are mounted into the Linux host and processed by the indexer container:
+**Core idea:**  
+Upload or mount internal documents → index them into a vector database → query them through a RAG API → interact via a chat UI.
 
-```
-CIFS File Shares
-   ├── //domain.com/.../KB
-   └── //domaiin.com/.../SOP
-            │
-            ▼
-     Linux Host Mounts
-     /mnt/KB
-     /mnt/SOPs
-            │
-            ▼
-   kb-indexer Container
-   - Reads PDFs / DOCX
-   - Extracts text
-   - Chunks documents
-   - Pushes embeddings → ChromaDB
-            │
-            ▼
-     ChromaDB Collection
-          collection_name
-```
+**Tech stack (example – adjust as needed):**
 
-This ensures all documentation is searchable and query-ready.
+- **LLM Runtime:** Ollama (local models, e.g. `llama3`, `phi-4`, etc.)
+- **Chat UI:** Open WebUI
+- **Vector DB:** ChromaDB
+- **RAG API:** FastAPI service that:
+  - accepts a user query  
+  - retrieves relevant docs from ChromaDB  
+  - builds a grounded prompt  
+  - calls Ollama and returns an answer + sources
+- **Indexer Service:** Python service that:
+  - reads documents from a mounted KB directory  
+  - chunks, embeds, and writes to ChromaDB
+- **Reverse Proxy / TLS:** Caddy (or Nginx)
+- **Orchestration:** Docker Compose
 
 ---
 
-## **RAG Query Flow (Step-by-Step)**
+## 🧱 Architecture
 
-1. **User asks a question** in OpenWebUI.
-2. OpenWebUI’s RAG tool sends the question → **RAG API**.
-3. RAG API queries **ChromaDB** (collection: `collection_name`) to retrieve the top-K relevant chunks.
-4. RAG API inserts those chunks into a structured prompt.
-5. RAG API sends the prompt to **Ollama**, which performs LLM inference on-prem.
-6. The LLM generates the final answer with context and citations.
-7. OpenWebUI displays the answer to the user.
+### Components
 
-All retrieval and inference operations occur internally.
+1. **Open WebUI**
+   - Frontend chat experience for users
+   - Sends RAG requests to the `rag-api` service
 
----
+2. **RAG API (`services/rag-api`)**
+   - REST API for RAG queries
+   - Endpoints like:
+     - `POST /api/rag/query` – ask a question with optional filters
+     - `GET /api/health` – health check
+   - Orchestrates:
+     - search in ChromaDB
+     - building the final prompt
+     - calling Ollama
+     - formatting the response + citations
 
-## **🧩 Core Components**
+3. **ChromaDB**
+   - Stores vector embeddings for KB documents
+   - Collections organized by namespace (e.g. `kb_sops`, `policies`, `howto`)
 
-### **1. OpenWebUI**
+4. **KB Indexer (`services/kb-indexer`)**
+   - Ingests files from a directory (e.g. `kb-samples/`)
+   - Normalizes and chunks content (PDF, DOCX, MD, etc.)
+   - Uses a sentence-transformer / embedding model
+   - Pushes embeddings + metadata into ChromaDB
 
-* Main chat interface for users
-* Supports RAG tool integration
-* Hosted locally and isolated from external networks
+5. **Ollama**
+   - Runs local LLMs
+   - Keeps all prompts and context on-prem
 
-### **2. RAG API**
-
-* Python/FastAPI microservice
-* Handles:
-
-  * retrieval → prompt building → LLM inference
-  * formatting prompt templates
-  * managing context windows
-
-### **3. ChromaDB**
-
-* Vector database storing embeddings
-* Collection: `collection_name`
-* Accessible only on internal Docker networks
-
-### **4. Ollama**
-
-* Local LLM runtime (GPU-enabled)
-* Supports models such as:
-
-  * `llama2:7b`
-  * `phi4-reasoning:14b`
-  * `mistral`
-* Ensures data never leaves the internal environment
-
-### **5. kb-indexer**
-
-* Scans mounted KB/SOP directories
-* Converts PDF/DOCX → text
-* Chunks and embeds
-* Pushes to ChromaDB
+6. **Caddy / Reverse Proxy**
+   - Terminates TLS (if configured)
+   - Routes traffic to:
+     - `/` → Open WebUI
+     - `/api/rag/` → RAG API
 
 ---
 
-## **Security & Isolation**
+## 🗂️ Repository Structure
 
-* Fully on-prem; no external APIs
-* CIFS mounts set to **read-only** from Windows file server
-* Docker network isolation prevents cross-container exposure
-* Optional future TLS termination with Caddy
-* Suitable for HIPAA/IRB data environments
+```text
+.
+├── README.md
+├── docs/
+│   ├── architecture-overview.md
+│   ├── rag-sequence-diagram.md
+│   ├── screenshots/
+│   │   ├── openwebui-home.png
+│   │   └── rag-chat-example.png
+├── deploy/
+│   ├── docker-compose.yml
+│   ├── .env.example
+│   ├── caddy/
+│   │   └── Caddyfile
+│   ├── openwebui/
+│   │   └── openwebui.yaml
+│   └── chromadb/
+│       └── chromadb.config.yaml
+├── services/
+│   ├── rag-api/
+│   └── kb-indexer/
+├── kb-samples/
+└── scripts
 
----
+See docs/architecture-overview.md for diagrams and more detail.
 
-## **Optional: API Gateway Enhancement**
+ Getting Started
 
-If multiple systems will use the RAG pipeline (OpenWebUI, web portals, n8n, Slack bots), an API Gateway can wrap the RAG API:
+1. Prerequisites
 
-```
-              ┌──────────────┐
-              │ API Gateway  │
-              └───────┬──────┘
-                      ▼
-                 RAG API
-           /query /embed /health
-```
+	• Docker & Docker Compose
+	• (Optional) NVIDIA GPU drivers + CUDA for GPU acceleration with Ollama
+2. Clone the repo
 
-Provides:
-
-* Authentication
-* Rate limiting
-* Logging
-* Standardized access for multiple apps
-
----
-
-## **Summary**
-
-The AI-POC’s RAG implementation provides a fully internal, secure, GPU-accelerated knowledge retrieval system. It integrates:
-
-* On-prem file shares
-* Automated document ingestion
-* ChromaDB vector search
-* Local LLM inference via Ollama
-* OpenWebUI as a friendly interface
-
-This architecture lays the foundation for future enterprise-grade internal AI systems, including APIs, Slack integrations, research tools, automation, and more.
