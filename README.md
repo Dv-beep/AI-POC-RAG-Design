@@ -4,7 +4,7 @@ This repository contains a self-hosted AI Knowledge Platform built around **Retr
 
 ---
 
-## 📐 Architecture Diagram
+## Architecture Diagram
 
 <p align="center">
   <img src="docs/screenshots/architecture.png" width="700"/>
@@ -14,7 +14,7 @@ The goal of this project is to provide a secure, internal-only AI assistant that
 
 ---
 
-## 🔍 High-Level Overview
+## High-Level Overview
 
 **Core idea:**  
 Upload or mount internal documents → index them into a vector database → query them through a RAG API → interact via a chat UI.
@@ -37,7 +37,7 @@ Upload or mount internal documents → index them into a vector database → que
 
 ---
 
-## 🧱 Architecture
+## Architecture
 
 ### Components
 
@@ -78,7 +78,7 @@ Upload or mount internal documents → index them into a vector database → que
 
 ---
 
-## 🗂️ Repository Structure
+## Repository Structure
 
 ```text
 .
@@ -87,8 +87,8 @@ Upload or mount internal documents → index them into a vector database → que
 │   ├── architecture-overview.md
 │   ├── rag-sequence-diagram.md
 │   ├── screenshots/
-│   │   ├── openwebui-home.png
-│   │   └── rag-chat-example.png
+│   │   ├── architecture.png
+│   │   └── RAG Connection Tool.png
 ├── deploy/
 │   ├── docker-compose.yml
 │   ├── .env.example
@@ -105,7 +105,7 @@ Upload or mount internal documents → index them into a vector database → que
 └── scripts/
 ```
 
-See docs/arhitecture-overview.md for diagrams and more detail.
+See [docs/arhitecture-overview.md](https://github.com/Dv-beep/ai-platform-poc/blob/main/docs/architecture-overview.md) for diagrams and more detail.
 
 ---
 
