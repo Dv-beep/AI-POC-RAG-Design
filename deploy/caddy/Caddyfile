@@ -1,0 +1,7 @@
+app.example.com {
+  tls /certs/selfsigned.crt /certs/selfsigned.key
+
+  reverse_proxy http://<ip-address>:8080 {
+    flush_interval -1
+  }
+}

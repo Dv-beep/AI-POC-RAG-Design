@@ -1,0 +1,62 @@
+services:
+  server:
+    image: chromadb/chroma:latest
+    container_name: chromadb-server-1
+    restart: unless-stopped
+
+    ports:
+      - "7000:8000"             # host:container
+
+    volumes:
+      - chroma_data:/data     # Chroma’s persistent data
+      - chroma_cache:/root/.cache/chroma       # cache ONNX embedding model
+    
+    environment:
+      IS_PERSISTENT: "TRUE"
+      CHROMA_SERVER_ENABLE_TELEMETRY: "TRUE"
+
+    networks:
+      - chroma_net
+
+  rag-api:
+    build:
+      context: ./rag-api
+    container_name: rag-api
+    depends_on:
+      - server
+    environment:
+      CHROMA_HOST: server
+      CHROMA_PORT: "8000"
+      COLLECTION_NAME: enterprise_collection
+    ports:
+      - "9000:9000"
+    networks:
+      - chroma_net
+        
+  indexer:
+    build:
+      context: ./indexer
+    container_name: kb-indexer
+    depends_on:
+      - rag-api    
+    environment:      # Two roots inside the container, mapped from your two mounts
+      KB_ROOTS: "/kb/knowledgebase,/kb/sops"
+      RAG_API_URL: "http://rag-api:9000"
+    volumes:
+      - /mnt/KnowledgeBase:/kb/knowledgebase:ro
+      - /mnt/SOPs:/kb/sops:ro
+
+    networks:
+      - chroma_net
+    restart: "no"
+
+volumes:
+  chroma_data:
+    driver: local
+  chroma_cache:
+
+networks:
+  chroma_net:
+    driver: bridge
+
+

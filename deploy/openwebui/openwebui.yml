@@ -1,0 +1,79 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+
+    volumes:
+      - openwebui-data:/app/backend/data
+
+    restart: always
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      ENABLE_OAUTH_SIGNUP: ${ENABLE_OAUTH_SIGNUP}
+      OAUTH_UPDATE_PICTURE_ON_LOGIN: ${OAUTH_UPDATE_PICTURE_ON_LOGIN}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET}
+      MICROSOFT_CLIENT_TENANT_ID: ${MICROSOFT_CLIENT_TENANT_ID}
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI}
+      WEBUI_URL: ${WEBUI_URL}
+      OPENID_PROVIDER_URL: ${OPENID_PROVIDER_URL}
+
+      # LLM Backend
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+
+      # Local timezone
+      TZ: America/Los_Angeles
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    networks:
+      - openwebui-net
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: open-webui-caddy
+    volumes:
+      - /home/it/OpenWebUI/certs:/certs:ro
+      - /home/it/OpenWebUI/CaddyFile:/etc/caddy/Caddyfile:ro
+    restart: unless-stopped
+    networks:
+      - openwebui-net
+    ports:
+      - "80:80"
+      - "443:443"
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: open-webui-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    command: --schedule "0 4 * * *" --cleanup
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: open-webui-portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+    restart: unless-stopped
+
+volumes:
+  openwebui-data:
+  portainer-data:
+
+networks:
+  openwebui-net:
+    driver: bridge
+
+

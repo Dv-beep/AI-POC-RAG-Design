@@ -32,7 +32,7 @@ Upload or mount internal documents → index them into a vector database → que
 - **Indexer Service:** Python service that:
   - reads documents from a mounted KB directory  
   - chunks, embeds, and writes to ChromaDB
-- **Reverse Proxy / TLS:** Caddy (or Nginx)
+- **Reverse Proxy / TLS:** Caddy
 - **Orchestration:** Docker Compose
 
 ---
@@ -71,7 +71,7 @@ Upload or mount internal documents → index them into a vector database → que
    - Keeps all prompts and context on-prem
 
 6. **Caddy / Reverse Proxy**
-   - Terminates TLS (if configured)
+   - Terminates TLS
    - Routes traffic to:
      - `/` → Open WebUI
      - `/api/rag/` → RAG API
@@ -91,13 +91,12 @@ Upload or mount internal documents → index them into a vector database → que
 │   │   └── RAG Connection Tool.png
 ├── deploy/
 │   ├── docker-compose.yml
-│   ├── .env.example
 │   ├── caddy/
 │   │   └── Caddyfile
 │   ├── openwebui/
-│   │   └── openwebui.yaml
+│   │   └── openwebui.yml
 │   └── chromadb/
-│       └── chromadb.config.yaml
+│       └── chromadb.yml
 ├── services/
 │   ├── rag-api/
 │   └── kb-indexer/
