@@ -31,17 +31,20 @@ It’s built for research institutes, IT departments, and enterprises that canno
 ## Tech Stack
 
 ### Core Components
-<div align='center'>
+<div align="center">
+
 | Component                    | Purpose                                                      |
-| ---------------------------- | ------------------------------------------------------------ |
-| **Open WebUI**               | Secure chat UI for interacting with LLMs + RAG               |
-| **RAG API (FastAPI)**        | Handles queries, semantic search, prompt building, LLM calls |
-| **ChromaDB**                 | Vector database storing embeddings and metadata              |
-| **Indexer Service (Python)** | Processes documents, builds embeddings, tracks changes       |
-| **Ollama**                   | Local LLM runtime (`phi-4`, `llama3`, `mistral`, etc.)       |
-| **Caddy**                    | TLS termination + reverse proxy routing                      |
-| **Docker Compose**           | Orchestration for all services                               |
+|:---------------------------:|:------------------------------------------------------------:|
+| **Open WebUI**              | Secure internal chat UI for interacting with LLMs + RAG       |
+| **RAG API (FastAPI)**       | Handles semantic search, prompt building, and LLM calls        |
+| **ChromaDB**                | Vector database storing embeddings and metadata               |
+| **Indexer Service (Python)**| Processes documents, builds embeddings, tracks changes        |
+| **Ollama**                  | Local LLM runtime (`phi-4`, `llama3`, `mistral`)              |
+| **Caddy**                   | TLS termination + reverse proxy routing                       |
+| **Docker Compose**          | Orchestration of all services                                 |
+
 </div>
+
 ---
 
 ## How the System Works (High-Level Flow)
