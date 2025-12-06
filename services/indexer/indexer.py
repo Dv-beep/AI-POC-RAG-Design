@@ -6,28 +6,24 @@ Scans one or more knowledge base root directories, reads supported files
 /ingest endpoint for storage in a vector database (e.g. ChromaDB).
 """
 
-
 import os
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing import List, Dict, Optional, Set
-
 import requests
+from datetime import datetime, timezone
+from typing import List, Dict, Optional
+
 from pypdf import PdfReader
 from docx import Document
 import pandas as pd  # CSV/Excel support
 
 # Environment variables (set via docker-compose / .env)
-KB_ROOTS_ENV = os.environ.get(
-    "KB_ROOTS",
-    "/kb/knowledgebase,/kb/sops,/kb/datasets",
-)
+KB_ROOTS_ENV = os.environ.get("KB_ROOTS", "/kb/knowledgebase,/kb/sops,/kb/datasets")
 RAG_API_URL = os.environ.get("RAG_API_URL", "http://rag-api:9000")
 ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY")  # API key for RAG admin endpoints
 
 # Comma-separated list of roots inside the container
-KB_ROOTS: List[str] = [p.strip() for p in KB_ROOTS_ENV.split(",") if p.strip()]
+KB_ROOTS = [p.strip() for p in KB_ROOTS_ENV.split(",") if p.strip()]
 
 # IMPORTANT:
 # Changing KB_ROOTS is treated as deleting an entire KB source.
@@ -44,16 +40,11 @@ EXCEL_EXTENSIONS = {".xlsx", ".xls", ".xlsm"}
 # State file to remember hashes between runs (mounted from host)
 STATE_FILE = "/app/index_state.json"
 
-# Endpoint for pushing indexer status into the RAG API
+
 INDEXER_STATUS_ENDPOINT = os.environ.get(
     "INDEXER_STATUS_ENDPOINT",
     f"{RAG_API_URL}/admin/indexer_status",
 )
-
-
-def log(msg: str) -> None:
-    print(f"[INDEXER] {msg}", flush=True)
-
 
 def report_indexer_status(
     last_run: Optional[str],
@@ -72,6 +63,7 @@ def report_indexer_status(
         "deleted_docs": deleted_docs,
     }
 
+    # Build headers – only send X-Admin-Key if we actually have a key
     headers = {
         "Content-Type": "application/json",
     }
@@ -81,13 +73,19 @@ def report_indexer_status(
     try:
         resp = requests.post(
             INDEXER_STATUS_ENDPOINT,
-            json=payload,  # let requests handle JSON encoding
+            json=payload,          # let requests handle JSON encoding
             headers=headers,
             timeout=10,
         )
         log(f"Indexer status report: {resp.status_code} {resp.text}")
     except Exception as e:
         log(f"Failed to report indexer status: {e}")
+
+
+
+
+def log(msg: str) -> None:
+    print(f"[INDEXER] {msg}", flush=True)
 
 
 def file_sha256(path: str, chunk_size: int = 8192) -> str:
@@ -280,15 +278,12 @@ def ingest_file(
     root_path: str,
     full_path: str,
     state: Dict[str, Dict[str, str]],
-    seen_ids: Set[str],
-) -> bool:
-    """
-    Read, chunk, and send a single file to the RAG API /ingest endpoint.
-    Returns True if the file was successfully indexed (2xx from API), else False.
-    """
+    seen_ids: set,
+) -> None:
+    """Read, chunk, and send a single file to the RAG API /ingest endpoint."""
     if not should_index_file(full_path):
         log(f"Skipping unsupported or non-text file: {full_path}")
-        return False
+        return
 
     name = os.path.basename(full_path)
     _, ext = os.path.splitext(name)
@@ -304,7 +299,7 @@ def ingest_file(
 
     if document_id in state and state[document_id].get("doc_hash") == doc_hash:
         log(f"Skipping unchanged file: {full_path}")
-        return False
+        return
 
     log(f"Indexing file: {full_path}")
 
@@ -313,7 +308,7 @@ def ingest_file(
 
     if not text_chunks:
         log(f"No content to index in file: {full_path}")
-        return False
+        return
 
     chunks = []
     total_chunks = len(text_chunks)
@@ -360,46 +355,36 @@ def ingest_file(
                 "doc_hash": doc_hash,
                 "last_modified": last_modified,
             }
-            return True
 
     except Exception as e:
         log(f"Error ingesting {document_id}: {e}")
-
-    return False
 
 
 def index_root(
     root_path: str,
     state: Dict[str, Dict[str, str]],
-    seen_ids: Set[str],
-) -> int:
-    """Walk a single KB root and ingest all indexable files. Returns # of indexed docs."""
+    seen_ids: set,
+) -> None:
+    """Walk a single KB root and ingest all indexable files."""
     root_label = os.path.basename(root_path.rstrip("/"))
     if not os.path.isdir(root_path):
         log(f"Root path does not exist or is not a directory: {root_path}")
-        return 0
+        return
 
     log(f"Scanning root '{root_label}' at {root_path}")
 
-    indexed_count = 0
     for dirpath, dirnames, filenames in os.walk(root_path):
-        # Skip hidden directories
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
         for filename in filenames:
             full_path = os.path.join(dirpath, filename)
-            if ingest_file(root_label, root_path, full_path, state, seen_ids):
-                indexed_count += 1
-
-    return indexed_count
+            ingest_file(root_label, root_path, full_path, state, seen_ids)
 
 
-def get_collection_doc_count() -> Optional[int]:
-    """
-    Ask RAG API for the current Chroma document count via /admin/status.
-    Chroma empty → 0
-    Chroma unreachable → None
-    Chroma has data → non-zero
-    """
+# Chroma empty → 0 → full rebuild ✔
+# Chroma unreachable → None → skip rebuild ❌
+# Chroma has data → non-zero → skip rebuild ✔
+def get_collection_doc_count():
+    """Ask RAG API for the current Chroma document count."""
     try:
         headers = {}
         if ADMIN_API_KEY:
@@ -487,7 +472,7 @@ def main() -> None:
     )
 
     state = load_index_state()
-    seen_ids: Set[str] = set()
+    seen_ids: set[str] = set()
 
     # Reset state if Chroma is empty but KB has files
     if collection_doc_count == 0 and kb_has_files and state:
@@ -498,9 +483,8 @@ def main() -> None:
         state = {}
 
     # Index all roots, track what exists on disk
-    total_indexed_docs = 0
     for root in KB_ROOTS:
-        total_indexed_docs += index_root(root, state, seen_ids)
+        index_root(root, state, seen_ids)
 
     # Anything in state but not seen this run = deleted from KB → candidate for delete
     existing_ids = set(state.keys())
@@ -529,7 +513,6 @@ def main() -> None:
         perform_deletes = True
 
     # ---- Perform deletions if allowed ----
-    deleted_count = 0
     if deleted_ids and perform_deletes:
         log(
             f"Detected {len(deleted_ids)} deleted documents; "
@@ -538,7 +521,6 @@ def main() -> None:
         for doc_id in deleted_ids:
             if delete_document_from_rag(doc_id):
                 state.pop(doc_id, None)
-                deleted_count += 1
     elif deleted_ids and not perform_deletes:
         log(
             f"Detected {len(deleted_ids)} deleted documents, "
@@ -548,6 +530,7 @@ def main() -> None:
     save_index_state(state)
     log("Indexing completed.")
 
+
     last_run = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     report_indexer_status(
@@ -555,10 +538,15 @@ def main() -> None:
         last_error=None,
         kb_roots=KB_ROOTS,
         files_seen=len(seen_ids),
-        docs_indexed=total_indexed_docs,
-        deleted_docs=deleted_count if perform_deletes else 0,
+        docs_indexed=0,   # or track if you want
+        deleted_docs=len(deleted_ids) if perform_deletes else 0,
     )
+
+    save_index_state(state)
+    log("Indexing completed.")
 
 
 if __name__ == "__main__":
     main()
+
+# end of services/indexer/indexer.py

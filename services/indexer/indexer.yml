@@ -1,0 +1,25 @@
+# deploy/indexer/indexer.yml
+services:
+  indexer:
+    build:
+      context: .              # this folder has Dockerfile + indexer.py
+    container_name: kb-indexer
+    environment:
+      KB_ROOTS: ${KB_ROOTS}
+      RAG_API_URL: ${RAG_API_URL}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+    volumes:
+      - /mnt/KnowledgeBase:/kb/knowledgebase:ro
+      - /mnt/SOPs:/kb/sops:ro
+      - /mnt/Datasets:/kb/datasets:ro
+      - /var/lib/tli-ai/index_state.json:/app/index_state.json # state file to teach the indexer what it ingested last time.
+    networks:
+      - chroma_net
+    restart: "no"             # one-shot job is fine
+
+networks:
+  chroma_net:
+    external: true
+    name: chroma_net
+
+# end of deploy/indexer/indexer.yml

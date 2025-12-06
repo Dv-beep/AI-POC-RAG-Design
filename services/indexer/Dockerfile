@@ -1,4 +1,4 @@
-FROM python:4.11-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -12,10 +12,11 @@ RUN pip install --no-cache-dir \
     chromadb \
     pypdf \
     python-docx \
-    requests
+    requests \
+    pandas \
+    openpyxl
 
 COPY indexer.py /app/indexer.py
 
 CMD ["python", "indexer.py"]
-
 

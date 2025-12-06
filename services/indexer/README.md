@@ -25,7 +25,7 @@ Hidden directories (`.git`, `.cache`, etc.) are automatically ignored.
 ### **2. Multi-Format File Support**
 
 The indexer extracts text from the following file types:
-
+<p align="center">
 | Format                         | Supported | Extraction Method     |
 | ------------------------------ | --------- | --------------------- |
 | **TXT / MD / LOG**             | ✅         | UTF-8 text reader     |
@@ -33,7 +33,7 @@ The indexer extracts text from the following file types:
 | **DOCX**                       | ✅         | `python-docx`         |
 | **CSV**                        | ✅         | Pandas (`read_csv`)   |
 | **Excel (.xlsx, .xls, .xlsm)** | ✅         | Pandas (`read_excel`) |
-
+</p>
 Each sheet within an Excel workbook is labeled so the LLM understands context.
 
 ---
