@@ -31,7 +31,7 @@ It’s built for research institutes, IT departments, and enterprises that canno
 ## Tech Stack
 
 ### Core Components
-
+<div align='center'>
 | Component                    | Purpose                                                      |
 | ---------------------------- | ------------------------------------------------------------ |
 | **Open WebUI**               | Secure chat UI for interacting with LLMs + RAG               |
@@ -41,7 +41,7 @@ It’s built for research institutes, IT departments, and enterprises that canno
 | **Ollama**                   | Local LLM runtime (`phi-4`, `llama3`, `mistral`, etc.)       |
 | **Caddy**                    | TLS termination + reverse proxy routing                      |
 | **Docker Compose**           | Orchestration for all services                               |
-
+</div>
 ---
 
 ## How the System Works (High-Level Flow)
