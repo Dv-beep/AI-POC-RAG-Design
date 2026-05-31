@@ -1,3 +1,6 @@
+# Repository Structure Plan
+
+```text
 ai-platform-poc/
 ├── README.md
 ├── LICENSE
@@ -123,3 +126,4 @@ ai-platform-poc/
     └── workflows/
         ├── ci-python.yml           # lint + tests for rag-api & indexer
         └── docker-build.yml        # optional: build images on main
+```
