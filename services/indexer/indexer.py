@@ -9,9 +9,16 @@ Scans one or more knowledge base root directories, reads supported files
 import os
 import hashlib
 import json
+import logging
 import requests
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("indexer")
 
 from pypdf import PdfReader
 from docx import Document
@@ -39,6 +46,8 @@ EXCEL_EXTENSIONS = {".xlsx", ".xls", ".xlsm"}
 
 # State file to remember hashes between runs (mounted from host)
 STATE_FILE = "/app/index_state.json"
+
+CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "1500"))
 
 
 INDEXER_STATUS_ENDPOINT = os.environ.get(
@@ -85,7 +94,7 @@ def report_indexer_status(
 
 
 def log(msg: str) -> None:
-    print(f"[INDEXER] {msg}", flush=True)
+    logger.info(msg)
 
 
 def file_sha256(path: str, chunk_size: int = 8192) -> str:
@@ -279,11 +288,14 @@ def ingest_file(
     full_path: str,
     state: Dict[str, Dict[str, str]],
     seen_ids: set,
-) -> None:
-    """Read, chunk, and send a single file to the RAG API /ingest endpoint."""
+) -> bool:
+    """Read, chunk, and send a single file to the RAG API /ingest endpoint.
+
+    Returns True if the file was successfully indexed, False if skipped or failed.
+    """
     if not should_index_file(full_path):
         log(f"Skipping unsupported or non-text file: {full_path}")
-        return
+        return False
 
     name = os.path.basename(full_path)
     _, ext = os.path.splitext(name)
@@ -299,16 +311,16 @@ def ingest_file(
 
     if document_id in state and state[document_id].get("doc_hash") == doc_hash:
         log(f"Skipping unchanged file: {full_path}")
-        return
+        return False
 
     log(f"Indexing file: {full_path}")
 
     raw_text = read_file_as_text(full_path)
-    text_chunks = chunk_text(raw_text, max_chars=1500)
+    text_chunks = chunk_text(raw_text, max_chars=CHUNK_SIZE)
 
     if not text_chunks:
         log(f"No content to index in file: {full_path}")
-        return
+        return False
 
     chunks = []
     total_chunks = len(text_chunks)
@@ -355,29 +367,36 @@ def ingest_file(
                 "doc_hash": doc_hash,
                 "last_modified": last_modified,
             }
+            return True
+
+        return False
 
     except Exception as e:
         log(f"Error ingesting {document_id}: {e}")
+        return False
 
 
 def index_root(
     root_path: str,
     state: Dict[str, Dict[str, str]],
     seen_ids: set,
-) -> None:
-    """Walk a single KB root and ingest all indexable files."""
+) -> int:
+    """Walk a single KB root and ingest all indexable files. Returns count of newly indexed files."""
     root_label = os.path.basename(root_path.rstrip("/"))
     if not os.path.isdir(root_path):
         log(f"Root path does not exist or is not a directory: {root_path}")
-        return
+        return 0
 
     log(f"Scanning root '{root_label}' at {root_path}")
 
+    indexed = 0
     for dirpath, dirnames, filenames in os.walk(root_path):
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]
         for filename in filenames:
             full_path = os.path.join(dirpath, filename)
-            ingest_file(root_label, root_path, full_path, state, seen_ids)
+            if ingest_file(root_label, root_path, full_path, state, seen_ids):
+                indexed += 1
+    return indexed
 
 
 # Chroma empty → 0 → full rebuild ✔
@@ -483,8 +502,9 @@ def main() -> None:
         state = {}
 
     # Index all roots, track what exists on disk
+    docs_indexed = 0
     for root in KB_ROOTS:
-        index_root(root, state, seen_ids)
+        docs_indexed += index_root(root, state, seen_ids)
 
     # Anything in state but not seen this run = deleted from KB → candidate for delete
     existing_ids = set(state.keys())
@@ -528,21 +548,17 @@ def main() -> None:
         )
 
     save_index_state(state)
-    log("Indexing completed.")
-
 
     last_run = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
     report_indexer_status(
         last_run=last_run,
         last_error=None,
         kb_roots=KB_ROOTS,
         files_seen=len(seen_ids),
-        docs_indexed=0,   # or track if you want
+        docs_indexed=docs_indexed,
         deleted_docs=len(deleted_ids) if perform_deletes else 0,
     )
 
-    save_index_state(state)
     log("Indexing completed.")
 
 

@@ -22,13 +22,22 @@ FastAPI service that fronts a ChromaDB collection. Provides:
     Admin-only delete by document_id (used by indexer)
 """
 
+import logging
 import os
+import threading
+import time
 from typing import List, Dict, Any, Optional
 
 import chromadb
 from chromadb.config import Settings
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("rag_api")
 
 # --- Environment / config ---
 
@@ -41,14 +50,41 @@ app = FastAPI(title="RAG API")
 
 # --- Chroma client and collection ---
 
-client = chromadb.HttpClient(
-    host=CHROMA_HOST,
-    port=CHROMA_PORT,
-    settings=Settings(allow_reset=False),
-)
-collection = client.get_or_create_collection(COLLECTION_NAME)
+CHROMA_CONNECT_RETRIES = int(os.environ.get("CHROMA_CONNECT_RETRIES", "5"))
+CHROMA_CONNECT_DELAY = int(os.environ.get("CHROMA_CONNECT_DELAY", "5"))
+
+
+def _connect_chroma():
+    for attempt in range(1, CHROMA_CONNECT_RETRIES + 1):
+        try:
+            c = chromadb.HttpClient(
+                host=CHROMA_HOST,
+                port=CHROMA_PORT,
+                settings=Settings(allow_reset=False),
+            )
+            col = c.get_or_create_collection(COLLECTION_NAME)
+            logger.info(
+                "Connected to ChromaDB at %s:%s, collection=%s",
+                CHROMA_HOST, CHROMA_PORT, COLLECTION_NAME,
+            )
+            return c, col
+        except Exception as exc:
+            logger.warning(
+                "ChromaDB connection attempt %d/%d failed: %s",
+                attempt, CHROMA_CONNECT_RETRIES, exc,
+            )
+            if attempt < CHROMA_CONNECT_RETRIES:
+                time.sleep(CHROMA_CONNECT_DELAY)
+    raise RuntimeError(
+        f"Could not connect to ChromaDB at {CHROMA_HOST}:{CHROMA_PORT} "
+        f"after {CHROMA_CONNECT_RETRIES} attempts"
+    )
+
+
+client, collection = _connect_chroma()
 
 # In-memory store for latest indexer status heartbeat
+_status_lock = threading.Lock()
 LAST_INDEXER_STATUS: Optional[Dict[str, Any]] = None
 
 
@@ -257,7 +293,8 @@ def admin_indexer_status(
     require_admin(x_admin_key)
 
     global LAST_INDEXER_STATUS
-    LAST_INDEXER_STATUS = status.dict()
+    with _status_lock:
+        LAST_INDEXER_STATUS = status.model_dump()
 
     return {"status": "ok"}
 
@@ -280,11 +317,14 @@ def admin_status(
     except Exception:
         document_count = 0
 
+    with _status_lock:
+        indexer_status = LAST_INDEXER_STATUS
+
     return {
         "status": "ok",
         "collection": COLLECTION_NAME,
         "document_count": document_count,
-        "indexer_status": LAST_INDEXER_STATUS,
+        "indexer_status": indexer_status,
     }
 
 

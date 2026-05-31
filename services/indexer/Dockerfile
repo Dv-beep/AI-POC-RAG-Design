@@ -8,13 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # Python deps for Chroma client + document parsing + HTTP ingestion
-RUN pip install --no-cache-dir \
-    chromadb \
-    pypdf \
-    python-docx \
-    requests \
-    pandas \
-    openpyxl
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY indexer.py /app/indexer.py
 

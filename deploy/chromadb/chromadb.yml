@@ -13,14 +13,14 @@ services:
     
     environment:
       IS_PERSISTENT: "TRUE"
-      CHROMA_SERVER_ENABLE_TELEMETRY: "TRUE"
+      CHROMA_SERVER_ENABLE_TELEMETRY: "FALSE"
 
     networks:
       - chroma_net
 
   rag-api:
     build:
-      context: ./rag-api
+      context: ../../services/rag-api
     container_name: rag-api
     depends_on:
       - server
@@ -35,7 +35,7 @@ services:
         
   indexer:
     build:
-      context: ./indexer
+      context: ../../services/indexer
     container_name: kb-indexer
     depends_on:
       - rag-api    

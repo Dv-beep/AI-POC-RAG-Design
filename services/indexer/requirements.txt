@@ -1,4 +1,6 @@
 pypdf
 python-docx
 requests
+pandas
+openpyxl
 
