@@ -1,4 +1,4 @@
-# RAG Sequence Diagrams
+# RAG Mermaid Diagrams
 
 This document shows how the AI POC handles:
 
@@ -9,10 +9,37 @@ This document shows how the AI POC handles:
 
 ## High-Level Summary
 
-- **ETL Pipeline**
-    SMB File Shares -> KB Indexer -> Embeddings -> ChromaDB (collection).
-- **Query/Response**
-    User -> OpenWebUI -> LLM -> External Server Tool -> RAG API -> ChromaDB -> Ollama -> Answer back to User.
+```mermaid
+flowchart LR
+    subgraph Indexing["Indexing / ETL Pipeline"]
+        FS["SMB File Shares<br/>KB / SOPs"]
+        IDX["KB Indexer<br/>indexer.py"]
+        EMB["Embedding Model<br/>SentenceTransformers"]
+        C["ChromaDB<br/>enterprise_collection"]
+
+        FS --> IDX
+        IDX --> EMB
+        EMB --> IDX
+        IDX --> C
+    end
+
+    subgraph Query["Query / Response Pipeline"]
+        U["User"]
+        W["OpenWebUI"]
+        L["LLM<br/>Ollama"]
+        T["External Server Tool<br/>RAG Tool Server"]
+        R["RAG API<br/>FastAPI"]
+
+        U --> W
+        W --> L
+        L --> T
+        T --> R
+        R --> C
+        R --> L
+        L --> W
+        W --> U
+    end
+```
 
 This keeps all KB/SOP data internal while still giving the model rich, contextual access to enterprise knowledge through RAG.
 
@@ -60,6 +87,7 @@ sequenceDiagram
 ## 2. Query Flow (OpenWebUI → RAG API → ChromaDB → LLM)
 
 This flow shows what happens when a user asks a question in OpenWebUI and the model uses the External Server tool (backed by the RAG API).
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -95,7 +123,8 @@ sequenceDiagram
     L-->>W: Final natural-language answer
     W-->>U: Display answer + optional sources/links
 ```
-**Key points**
+
+**Key points:**
 
 - **User -> OpenWebUI**
     The user just chats normally. OpenWebUI sends the prompt to the LLM with the External Server tool available.
@@ -110,4 +139,4 @@ sequenceDiagram
 - **OpenWebUI Final Answer**
     The tool response is injected back into the LLM's context so it can:
     - Explain the answer in natural language.
-    - Surface citations back to the orginal documents on the file share.
+    - Surface citations back to the original documents on the file share.
