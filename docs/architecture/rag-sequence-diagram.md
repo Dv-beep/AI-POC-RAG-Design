@@ -39,6 +39,18 @@ flowchart LR
         L --> W
         W --> U
     end
+
+    classDef user fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef service fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef model fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    classDef storage fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef tool fill:#fce7f3,stroke:#db2777,color:#831843
+
+    class U,W user
+    class IDX,R service
+    class EMB,L model
+    class FS,C storage
+    class T tool
 ```
 
 This keeps all KB/SOP data internal while still giving the model rich, contextual access to enterprise knowledge through RAG.
@@ -50,6 +62,7 @@ This keeps all KB/SOP data internal while still giving the model rich, contextua
 This flow runs out-of-band via the `kb-indexer` container. It crawls internal SMB shares, chunks documents, and pushes embeddings into ChromaDB.
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#dbeafe", "actorBorder": "#2563eb", "actorTextColor": "#1e3a8a", "activationBkgColor": "#fef3c7", "activationBorderColor": "#d97706", "noteBkgColor": "#dcfce7", "noteBorderColor": "#16a34a", "noteTextColor": "#14532d", "signalColor": "#374151", "signalTextColor": "#111827"}}}%%
 sequenceDiagram
     autonumber
     participant FS as File Share<br/>(KB / SOPs)
@@ -89,6 +102,7 @@ sequenceDiagram
 This flow shows what happens when a user asks a question in OpenWebUI and the model uses the External Server tool (backed by the RAG API).
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"actorBkg": "#dbeafe", "actorBorder": "#2563eb", "actorTextColor": "#1e3a8a", "activationBkgColor": "#fef3c7", "activationBorderColor": "#d97706", "noteBkgColor": "#ede9fe", "noteBorderColor": "#7c3aed", "noteTextColor": "#3b0764", "signalColor": "#374151", "signalTextColor": "#111827"}}}%%
 sequenceDiagram
     autonumber
     participant U as User

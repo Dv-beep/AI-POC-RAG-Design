@@ -20,6 +20,18 @@ flowchart TD
     R --> A
     A --> W
     W --> U
+
+    classDef user fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef service fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef model fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+    classDef storage fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef output fill:#f3f4f6,stroke:#6b7280,color:#111827
+
+    class U,W user
+    class R service
+    class C storage
+    class O model
+    class A output
 ```
 
 ---
@@ -38,6 +50,16 @@ flowchart TD
     F --> M
     M --> I
     I --> C
+
+    classDef source fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef host fill:#f3f4f6,stroke:#6b7280,color:#111827
+    classDef service fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef storage fill:#dcfce7,stroke:#16a34a,color:#14532d
+
+    class F source
+    class M host
+    class I service
+    class C storage
 ```
 
 This ensures all documentation is searchable and query-ready.
