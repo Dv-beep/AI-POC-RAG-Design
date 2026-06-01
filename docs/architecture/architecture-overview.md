@@ -1,61 +1,45 @@
 ## Architecture Overview
 
 The AI-POC pipeline retrieves relevant internal content and augments the LLM’s response using ChromaDB-stored KB/SOP embeddings.
-```text
-                    ┌─────────────────────────┐
-                    │          Users          │
-                    └────────────┬────────────┘
-                                 │  HTTPS
-                                 ▼
-                        ┌────────────────┐
-                        │  OpenWebUI     │
-                        │ (Chat Client)  │
-                        └───────┬────────┘
-                                │ RAG Tool Call
-                                ▼
-                    ┌──────────────────────────┐
-                    │        RAG API           │
-                    │  - Query Orchestration   │
-                    │  - Prompt Builder        │
-                    └─────────┬─────┬──────────┘
-                              │     │
-        ┌─────────────────────┘     └──────────────────────┐
-        │                                                  │
-        ▼                                                  ▼
-┌──────────────────┐                              ┌──────────────────┐
-│    ChromaDB      │                              │     Ollama       │
-│ (Vector Store)   │                              │  (Local LLM)     │
-└──────────────────┘                              └──────────────────┘
 
-                       ▼
-                 Final Answer
+```mermaid
+flowchart TD
+    U["Users"]
+    W["OpenWebUI<br/>(Chat Client)"]
+    R["RAG API<br/>Query Orchestration<br/>Prompt Builder"]
+    C["ChromaDB<br/>(Vector Store)"]
+    O["Ollama<br/>(Local LLM)"]
+    A["Final Answer"]
+
+    U -->|"HTTPS"| W
+    W -->|"RAG Tool Call"| R
+    R -->|"Retrieve relevant chunks"| C
+    C -->|"Context + metadata"| R
+    R -->|"Grounded prompt"| O
+    O -->|"Generated response"| R
+    R --> A
+    A --> W
+    W --> U
 ```
+
 ---
 
 ## Data Ingestion & Indexing Workflow
 
 Internal KB & SOP directories on the Windows file server are mounted into the Linux host and processed by the indexer container:
-```text
-CIFS File Shares
-   ├── //fileshare/.../KB
-   └── //fileshare/.../SOP
-            │
-            ▼
-     Linux Host Mounts
-     /mnt/KB
-     /mnt/SOPs
-            │
-            ▼
-   kb-indexer Container
-   - Reads PDFs / DOCX
-   - Extracts text
-   - Chunks documents
-   - Pushes embeddings → ChromaDB
-            │
-            ▼
-     ChromaDB Collection
-          enterprise_collections
-``` 
+
+```mermaid
+flowchart TD
+    F["CIFS File Shares<br/>//fileshare/.../KB<br/>//fileshare/.../SOP"]
+    M["Linux Host Mounts<br/>/mnt/KB<br/>/mnt/SOPs"]
+    I["kb-indexer Container<br/>Reads PDFs / DOCX<br/>Extracts text<br/>Chunks documents<br/>Pushes embeddings"]
+    C["ChromaDB Collection<br/>enterprise_collections"]
+
+    F --> M
+    M --> I
+    I --> C
+```
+
 This ensures all documentation is searchable and query-ready.
 
 ---
